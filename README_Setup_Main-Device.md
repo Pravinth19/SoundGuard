@@ -86,12 +86,12 @@ Wenn du eine Liste von Befehlen siehst, ist alles korrekt installiert.
 ## Projektordner Übersicht
 
 📂 Pfad:
-C:/SoundGuard/Source/Main_Device/
+C:/SoundGuard/Source/Main-Device/
 
 ## 📄 Struktur:
 
 ```plaintext
-C:/SoundGuard/Source/Main_Device/
+C:/SoundGuard/Source/Main-Device/
 │
 ├── main.py              → zentrale Steuerung des Systems
 ├── web_config.py        → Webserver, Konfiguration & REST-API
