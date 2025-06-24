@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>SoundGuard Webinterface</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #013b5b;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .card {
+      background: #e4e1de;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    h1 {
+      color: #004d99;
+      margin-bottom: 20px;
+    }
+
+    img {
+      width: 150px;
+      margin-bottom: 20px;
+      border-radius: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    input[type="number"],
+    input[type="submit"] {
+      width: 80%;
+      padding: 10px;
+      font-size: 15px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    input[type="submit"] {
+      background-color: #ec922b;
+      color: #000000;
+      font-weight: bold;
+      font-size: 18px;
+      border: none;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #d47e1f;
+    }
+
+    #popup {
+      display: none;
+      background-color: #4caf50;
+      color: white;
+      padding: 12px 10px;
+      margin-top: 15px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 15px;
+      animation: fadein 0.3s ease-in-out;
+      width: 80%;
+      margin-left: auto;
+      margin-right: auto;
+      box-sizing: border-box;
+    }
+
+    #liveData {
+      font-weight: bold;
+      font-size: 16px;
+      margin-top: 20px;
+      color: #000;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>SoundGuard</h1>
+    <img src="soundguard_logo.webp" alt="SoundGuard Logo">
+
+    <form id="configForm">
+      <label for="threshold">Alarm-Schwellenwert (dB):</label>
+      <input id="threshold" name="threshold" type="number" min="50" max="120" required>
+      <input type="submit" value="Speichern">
+    </form>
+
+    <div id="popup">Konfiguration gespeichert.</div>
+    <div id="liveData">Live-Daten laden...</div>
+  </div>
+
+  <script>
+    const form = document.getElementById("configForm");
+    const popup = document.getElementById("popup");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const value = document.getElementById("threshold").value;
+      const body = "threshold=" + encodeURIComponent(value);
+
+      try {
+        const res = await fetch("/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body
+        });
+
+        if (res.ok) {
+          popup.style.display = "block";
+          setTimeout(() => popup.style.display = "none", 7000);
+        } else {
+          alert("Fehler beim Speichern.");
+        }
+      } catch (err) {
+        alert("Verbindungsfehler.");
+      }
+    });
+
+    async function updateLiveData() {
+      try {
+        const res = await fetch("/data");
+        const data = await res.json();
+        document.getElementById("liveData").innerHTML =
+          `Messgerät Halle 1: ${data.node1.db_level} dB<br>` +
+          `Messgerät Halle 2: ${data.node2.db_level} dB`;
+      } catch (err) {
+        document.getElementById("liveData").textContent = "Kommunikationsfehler!";
+      }
+    }
+
+    setInterval(updateLiveData, 2000);
+    updateLiveData();
+  </script>
+</body>
+</html>
