@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>SoundGuard Logs</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    pre {
+      background-color: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-x: auto;
+      max-height: 70vh;
+    }
+
+    button {
+      margin: 10px 10px 20px 0;
+      padding: 8px 12px;
+      font-weight: bold;
+      background-color: #004d99;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0066cc;
+    }
+  </style>
+</head>
+<body>
+  <h2>SoundGuard Logs</h2>
+  <button onclick="downloadCSV()">Als CSV herunterladen</button>
+  <button onclick="deleteLogs()">Logs löschen</button>
+  <pre id="logText">Lade Logs...</pre>
+
+  <script>
+    async function loadLogs() {
+      try {
+        const res = await fetch("/log");
+        const txt = await res.text();
+        document.getElementById("logText").textContent = txt;
+      } catch (err) {
+        document.getElementById("logText").textContent = "Fehler beim Laden der Logs.";
+      }
+    }
+
+    function deleteLogs() {
+      fetch("/log/delete").then(res => {
+        if (res.ok) {
+          document.getElementById("logText").textContent = "(Logs wurden gelöscht)";
+        } else {
+          alert("Fehler beim Löschen.");
+        }
+      });
+    }
+
+    function downloadCSV() {
+      window.open("/log.csv", "_blank");
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>

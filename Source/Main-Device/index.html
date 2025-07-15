@@ -172,13 +172,7 @@
     }
 
     function viewLogs() {
-      fetch("/log")
-        .then(res => res.text())
-        .then(txt => {
-          const logWindow = window.open("", "_blank");
-          logWindow.document.write("<pre>" + txt + "</pre>");
-        })
-        .catch(() => alert("Fehler beim Laden der Logs."));
+      window.open("/logs.html", "_blank");
     }
 
     setInterval(updateLiveData, 2000);
