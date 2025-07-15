@@ -16,18 +16,16 @@ latest_data = {
     "node2": {"device_id": "node2", "db_level": 0.0}
 }
 
-# Buzzer Setup (verwende GPIO 25)
-buzzer = PWM(Pin(25), freq=2000, duty=0)  # duty=0 = aus
+# Buzzer Setup
+buzzer = PWM(Pin(25), freq=2000, duty=0)
 
-# Funktion zur Steuerung des Buzzers
 def set_buzzer(active):
     if active:
-        buzzer.freq(2000)  # Alarmfrequenz
-        buzzer.duty(512)   # mittlere Lautstärke (Skala 0–1023)
+        buzzer.freq(2000)
+        buzzer.duty(512)
     else:
-        buzzer.duty(0)     # Ton aus
+        buzzer.duty(0)
 
-# WLAN Access Point starten
 def start_ap():
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
@@ -37,18 +35,24 @@ def start_ap():
     print("Access Point aktiv:", ap.ifconfig())
     return ap
 
-# UDP-Socket vorbereiten
 def setup_udp(port=4210):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(('0.0.0.0', port))
     return s
 
-# LCD aktualisieren
 def update_display():
     display_value("node1", latest_data["node1"]["db_level"])
     display_value("node2", latest_data["node2"]["db_level"])
 
-# UDP-Hauptschleife
+def save_log_entry(device_id, db_level):
+    try:
+        timestamp = time.localtime()
+        timestr = "{:02d}:{:02d}:{:02d}".format(timestamp[3], timestamp[4], timestamp[5])
+        with open("log.txt", "a") as f:
+            f.write(f"{timestr},{device_id},{db_level:.1f} dB\n")
+    except Exception as e:
+        print("⚠️ Fehler beim Log-Speichern:", e)
+
 def udp_loop(udp):
     global last_update_time
     while True:
@@ -61,6 +65,7 @@ def udp_loop(udp):
             if device_id in latest_data:
                 latest_data[device_id]["db_level"] = db_level
                 update_display()
+                save_log_entry(device_id, db_level)
 
                 if db_level > config["threshold"]:
                     print(f"⚠️ Lärm über Schwelle bei {device_id}: {db_level} dB")
@@ -78,7 +83,6 @@ def udp_loop(udp):
         except Exception as e:
             print("Fehler beim Empfang:", e)
 
-# Verbindung überwachen
 def monitor_connection():
     global last_update_time
     while True:
@@ -92,7 +96,6 @@ def monitor_connection():
 
 # Start
 last_update_time = time.ticks_ms()
-
 ap = start_ap()
 udp = setup_udp()
 

@@ -47,7 +47,8 @@
     }
 
     input[type="number"],
-    input[type="submit"] {
+    input[type="submit"],
+    input[type="button"] {
       width: 80%;
       padding: 10px;
       font-size: 15px;
@@ -61,13 +62,26 @@
       background-color: #ec922b;
       color: #000000;
       font-weight: bold;
-      font-size: 18px;
+      font-size: 16px;
       border: none;
       cursor: pointer;
     }
 
     input[type="submit"]:hover {
       background-color: #d47e1f;
+    }
+
+    input[type="button"] {
+      background-color: #4caf50;
+      color: #000000;
+      font-weight: bold;
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+    }
+
+    input[type="button"]:hover {
+      background-color: #3e8e41;
     }
 
     #popup {
@@ -108,6 +122,10 @@
       <label for="threshold">Alarm-Schwellenwert (dB):</label>
       <input id="threshold" name="threshold" type="number" min="50" max="120" required>
       <input type="submit" value="Speichern">
+    </form>
+
+    <form id="logForm">
+      <input type="button" value="Logs anzeigen" onclick="viewLogs()">
     </form>
 
     <div id="popup">Konfiguration gespeichert.</div>
@@ -151,6 +169,16 @@
       } catch (err) {
         document.getElementById("liveData").textContent = "Kommunikationsfehler!";
       }
+    }
+
+    function viewLogs() {
+      fetch("/log")
+        .then(res => res.text())
+        .then(txt => {
+          const logWindow = window.open("", "_blank");
+          logWindow.document.write("<pre>" + txt + "</pre>");
+        })
+        .catch(() => alert("Fehler beim Laden der Logs."));
     }
 
     setInterval(updateLiveData, 2000);
