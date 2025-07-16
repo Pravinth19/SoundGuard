@@ -8,14 +8,14 @@ def load_config():
     try:
         with open(CONFIG_FILE, "r") as f:
             cfg = ujson.load(f)
-            print("→ Geladene config:", cfg)
+            print("-> Geladene Konfiguration:", cfg)
             return cfg
     except:
-        print("→ Keine config gefunden, nutze Standardwert.")
+        print("-> Keine Konfiguration gefunden, nutze Standardwert.")
         return {"threshold": 85}
 
 def save_config(new_cfg):
-    print("→ Speichere config:", new_cfg)
+    print("-> Speichere Konfiguration:", new_cfg)
     with open(CONFIG_FILE, "w") as f:
         ujson.dump(new_cfg, f)
         f.flush()
@@ -26,19 +26,19 @@ def start_webserver(get_live_data):
     s = socket.socket()
     s.bind(addr)
     s.listen(1)
-    print("Webserver läuft auf http://192.168.4.1")
+    print("Webserver laeuft auf http://192.168.4.1")
 
     while True:
         cl, _ = s.accept()
         req = cl.recv(1024).decode()
 
-        # Live Daten abrufen
+        # Live-Daten abrufen
         if "GET /data" in req:
             data = get_live_data()
             cl.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
             cl.send(ujson.dumps(data))
 
-        # Konifg speichern
+        # Konfiguration speichern
         elif "POST /config" in req:
             body = req.split("\r\n\r\n")[1]
             try:
@@ -47,7 +47,7 @@ def start_webserver(get_live_data):
                 save_config(cfg)
                 cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nKonfiguration gespeichert.")
             except Exception as e:
-                print("→ Fehler beim Parsen:", e)
+                print("-> Fehler beim Parsen:", e)
                 cl.send("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nFehlerhafte Eingabe.")
 
         # Logs anzeigen
@@ -60,14 +60,14 @@ def start_webserver(get_live_data):
             except:
                 cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
 
-        # Logs löschen
+        # Logs loeschen
         elif "GET /log/delete" in req:
             try:
                 with open("log.txt", "w") as f:
                     f.write("")
-                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nLogs gelöscht.")
+                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nLogs geloescht.")
             except:
-                cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nFehler beim Löschen.")
+                cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nFehler beim Loeschen.")
 
         # Log als CSV herunterladen
         elif "GET /log.csv" in req:
@@ -109,17 +109,14 @@ def start_webserver(get_live_data):
 
         # Fallback
         else:
-												  
             html = """<html><body><h3>SoundGuard Webserver</h3>
-                      <p>Verfügbare Endpunkte:</p>
+                      <p>Verfuegbare Endpunkte:</p>
                       <ul>
                         <li><a href="/index.html">index.html</a></li>
                         <li><a href="/logs.html">logs.html</a></li>
                         <li><a href="/log">Log ansehen</a></li>
-                        <li><a href="/log/delete">Log löschen</a></li>
+                        <li><a href="/log/delete">Log loeschen</a></li>
                         <li><a href="/log.csv">Log als CSV</a></li>
-												
-															 
                       </ul></body></html>"""
             cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n")
             cl.send(html)

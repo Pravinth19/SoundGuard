@@ -37,7 +37,7 @@
 <body>
   <h2>SoundGuard Logs</h2>
   <button onclick="downloadCSV()">Als CSV herunterladen</button>
-  <button onclick="deleteLogs()">Logs löschen</button>
+  <button onclick="deleteLogs()">Logs loeschen</button>
   <pre id="logText">Lade Logs...</pre>
 
   <script>
@@ -54,9 +54,9 @@
     function deleteLogs() {
       fetch("/log/delete").then(res => {
         if (res.ok) {
-          document.getElementById("logText").textContent = "(Logs wurden gelöscht)";
+          document.getElementById("logText").textContent = "(Logs wurden geloescht)";
         } else {
-          alert("Fehler beim Löschen.");
+          alert("Fehler beim Loeschen.");
         }
       });
     }

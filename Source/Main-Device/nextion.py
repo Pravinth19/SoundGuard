@@ -13,7 +13,7 @@ def display_value(device_id, db_level):
 
     value_txt = "{:.1f} dB".format(db_level)
     val = int((db_level - min_db) / (max_db - min_db) * 180)
-    val = max(0, min(val, 180))  # Begrenzung auf gültigen Bereich
+    val = max(0, min(val, 180))  # Begrenzung auf gueltigen Bereich
 
     if device_id == "node1":
         send_cmd(f't0.txt="{value_txt}"')
@@ -21,7 +21,6 @@ def display_value(device_id, db_level):
     elif device_id == "node2":
         send_cmd(f't1.txt="{value_txt}"')
         send_cmd(f'zHalleB.val={val}')
-
 
 def display_status(msg):
     send_cmd(f'status.txt="{msg}"')
@@ -39,4 +38,3 @@ def show_alarm(active):
     else:
         send_cmd("p0.vis=0")
         send_cmd("t4.vis=0")
-

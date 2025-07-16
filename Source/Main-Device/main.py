@@ -51,7 +51,7 @@ def save_log_entry(device_id, db_level):
         with open("log.txt", "a") as f:
             f.write(f"{timestr},{device_id},{db_level:.1f} dB\n")
     except Exception as e:
-        print("⚠️ Fehler beim Log-Speichern:", e)
+        print("Fehler beim Log-Speichern:", e)
 
 def udp_loop(udp):
     global last_update_time
@@ -68,7 +68,7 @@ def udp_loop(udp):
                 save_log_entry(device_id, db_level)
 
                 if db_level > config["threshold"]:
-                    print(f"⚠️ Lärm über Schwelle bei {device_id}: {db_level} dB")
+                    print(f"Laerm ueber Schwelle bei {device_id}: {db_level} dB")
                     show_alarm(True)
                     display_status(f"ALARM: {device_id}")
                     set_buzzer(True)
@@ -87,7 +87,7 @@ def monitor_connection():
     global last_update_time
     while True:
         if time.ticks_diff(time.ticks_ms(), last_update_time) > 10000:
-            print("⚠️ Keine Verbindung zu Sensoren")
+            print("Keine Verbindung zu Sensoren")
             set_wifi_icon(False)
             display_status("Keine Verbindung")
             show_alarm(False)
