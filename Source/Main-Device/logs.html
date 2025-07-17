@@ -10,12 +10,25 @@
       background-color: #f5f5f5;
     }
 
-    pre {
-      background-color: white;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 8px;
       border: 1px solid #ccc;
-      padding: 10px;
-      overflow-x: auto;
-      max-height: 70vh;
+      text-align: left;
+    }
+
+    th {
+      background-color: #004d99;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
     }
 
     button {
@@ -38,23 +51,51 @@
   <h2>SoundGuard Logs</h2>
   <button onclick="downloadCSV()">Als CSV herunterladen</button>
   <button onclick="deleteLogs()">Logs loeschen</button>
-  <pre id="logText">Lade Logs...</pre>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Zeit</th>
+        <th>Sensor</th>
+        <th>Dezibel</th>
+      </tr>
+    </thead>
+    <tbody id="logTable">
+      <tr><td colspan="3">Lade Logs...</td></tr>
+    </tbody>
+  </table>
 
   <script>
     async function loadLogs() {
       try {
         const res = await fetch("/log");
         const txt = await res.text();
-        document.getElementById("logText").textContent = txt;
+        const lines = txt.trim().split("\n");
+
+        const tbody = document.getElementById("logTable");
+        tbody.innerHTML = "";
+
+        for (const line of lines) {
+          const parts = line.split(",");
+          if (parts.length === 3) {
+            const row = `<tr><td>${parts[0]}</td><td>${parts[1]}</td><td>${parts[2]}</td></tr>`;
+            tbody.innerHTML += row;
+          }
+        }
+
+        if (tbody.innerHTML.trim() === "") {
+          tbody.innerHTML = "<tr><td colspan='3'>(Keine Logs gefunden)</td></tr>";
+        }
+
       } catch (err) {
-        document.getElementById("logText").textContent = "Fehler beim Laden der Logs.";
+        document.getElementById("logTable").innerHTML = "<tr><td colspan='3'>Fehler beim Laden der Logs.</td></tr>";
       }
     }
 
     function deleteLogs() {
       fetch("/log/delete").then(res => {
         if (res.ok) {
-          document.getElementById("logText").textContent = "(Logs wurden geloescht)";
+          loadLogs();
         } else {
           alert("Fehler beim Loeschen.");
         }

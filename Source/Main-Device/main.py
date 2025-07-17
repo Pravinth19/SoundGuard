@@ -17,11 +17,11 @@ latest_data = {
 }
 
 # Buzzer Setup
-buzzer = PWM(Pin(25), freq=2000, duty=0)
+buzzer = PWM(Pin(25), freq=3000, duty=0)
 
 def set_buzzer(active):
     if active:
-        buzzer.freq(2000)
+        buzzer.freq(3000)
         buzzer.duty(512)
     else:
         buzzer.duty(0)
