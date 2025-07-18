@@ -50,36 +50,6 @@ def start_webserver(get_live_data):
                 print("-> Fehler beim Parsen:", e)
                 cl.send("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nFehlerhafte Eingabe.")
 
-        # Logs anzeigen
-        elif "GET /log" in req:
-            try:
-                with open("log.txt", "r") as f:
-                    log_content = f.read()
-                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n")
-                cl.send(log_content)
-            except:
-                cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
-
-        # Logs loeschen
-        elif "GET /log/delete" in req:
-            try:
-                with open("log.txt", "w") as f:
-                    f.write("")
-                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nLogs geloescht.")
-            except:
-                cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nFehler beim Loeschen.")
-
-        # Log als CSV herunterladen
-        elif "GET /log.csv" in req:
-            try:
-                with open("log.txt", "r") as f:
-                    content = f.read()
-                csv = "Zeit;Sensor;dB\n" + content.replace(" dB", "").replace(",", ";")
-                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/csv\r\nContent-Disposition: attachment; filename=log.csv\r\n\r\n")
-                cl.send(csv)
-            except:
-                cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
-
         # index.html abrufen
         elif "GET /index.html" in req or "GET / " in req:
             try:
@@ -106,6 +76,36 @@ def start_webserver(get_live_data):
                     cl.send(f.read())
             except:
                 cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nLogo fehlt.")
+
+        # Logs loeschen
+        elif "GET /log/delete" in req:
+            try:
+                with open("log.txt", "w") as f:
+                    f.write("")
+                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nLogs geloescht.")
+            except:
+                cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nFehler beim Loeschen.")
+
+        # Logs anzeigen
+        elif "GET /log" in req:
+            try:
+                with open("log.txt", "r") as f:
+                    log_content = f.read()
+                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n")
+                cl.send(log_content)
+            except:
+                cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
+
+        # Log als CSV herunterladen
+        elif "GET /log.csv" in req:
+            try:
+                with open("log.txt", "r") as f:
+                    content = f.read()
+                csv = "Zeit;Sensor;dB\n" + content.replace(" dB", "").replace(",", ";")
+                cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/csv\r\nContent-Disposition: attachment; filename=log.csv\r\n\r\n")
+                cl.send(csv)
+            except:
+                cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
 
         # Fallback
         else:

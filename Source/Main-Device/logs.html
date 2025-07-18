@@ -64,7 +64,6 @@
       <tr><td colspan="3">Lade Logs...</td></tr>
     </tbody>
   </table>
-
   <script>
     async function loadLogs() {
       try {
@@ -103,7 +102,12 @@
     }
 
     function downloadCSV() {
-      window.open("/log.csv", "_blank");
+    const link = document.createElement("a");
+    link.href = "/log.csv";
+    link.download = "log.csv"; // Name der heruntergeladenen Datei
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     }
 
     loadLogs();
