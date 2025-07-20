@@ -4,11 +4,12 @@ import ujson
 import _thread
 import time
 from machine import Pin, PWM, UART
-from nextion import display_value, set_wifi_icon, show_alarm
-from web_config import start_webserver, load_config
+from nextion import display_value, set_wifi_icon, show_alarm, send_cmd
+from web_config import start_webserver, load_config, save_config
 
 # Konfiguration laden
 config = load_config()
+threshold = config.get("threshold", 85)
 
 # Aktuelle Messdaten
 latest_data = {
@@ -54,7 +55,7 @@ def save_log_entry(device_id, db_level):
         print("Fehler beim Log-Speichern:", e)
 
 def udp_loop(udp):
-    global last_update_time
+    global last_update_time, threshold
     while True:
         try:
             data, _ = udp.recvfrom(1024)
@@ -67,7 +68,7 @@ def udp_loop(udp):
                 update_display()
                 save_log_entry(device_id, db_level)
 
-                if db_level > config["threshold"]:
+                if db_level > threshold:
                     print(f"Laerm ueber Schwelle bei {device_id}: {db_level} dB")
                     show_alarm(True)
                     set_buzzer(True)
@@ -90,20 +91,43 @@ def monitor_connection():
             show_alarm(False)
             set_buzzer(False)
         time.sleep(5)
-		
+
 def listen_for_button():
-    uart = UART(1, baudrate=9600, tx=17, rx=16)
+    global threshold
+    uart = UART(1, baudrate=9600, tx=16, rx=17)
+
+    # Schwellenwert bei Start anzeigen (page03_t2)
+    send_cmd(f'page03_t2.txt="{threshold} dB"')
+
     while True:
         if uart.any():
             data = uart.read()
-            if data:
-                print("Empfangen:", data)
+            if not data:
+                continue
+            print("Empfangen:", data)
 
-                # Quittierungs-Button b1 auf page02 (Seite 1, Objekt 1)
-                if b'\x65\x01\x0A\x01\xff\xff\xff' in data:
-                    print("Alarm quittiert")
-                    set_buzzer(False)
-                    show_alarm(False)
+            # Quittieren Alarm (page02_b1, ID 10)
+            if b'\x65\x01\x0A\x01\xff\xff\xff' in data:
+                print("Alarm quittiert")
+                set_buzzer(False)
+                show_alarm(False)
+
+            # Seite 3: Minus druecken (page03_b1, ID 5)
+            elif b'\x65\x03\x05\x01\xff\xff\xff' in data:
+                threshold = max(50, threshold - 1)
+                send_cmd(f'page03_t2.txt="{threshold} dB"')
+                print("– gedrueckt:", threshold)
+
+            # Seite 3: Plus druecken (page03_b2, ID 6)
+            elif b'\x65\x03\x06\x01\xff\xff\xff' in data:
+                threshold = min(120, threshold + 1)
+                send_cmd(f'page03_t2.txt="{threshold} dB"')
+                print("+ gedrueckt:", threshold)
+
+            # Seite 3: Speichern (page03_b0, ID 3)
+            elif b'\x65\x03\x03\x01\xff\xff\xff' in data:
+                save_config({"threshold": threshold})
+                print("Schwellenwert gespeichert:", threshold)
 
 # Start
 last_update_time = time.ticks_ms()
