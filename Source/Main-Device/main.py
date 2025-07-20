@@ -3,8 +3,8 @@ import socket
 import ujson
 import _thread
 import time
-from machine import Pin, PWM
-from nextion import display_value, set_wifi_icon, show_alarm, display_status
+from machine import Pin, PWM, UART
+from nextion import display_value, set_wifi_icon, show_alarm
 from web_config import start_webserver, load_config
 
 # Konfiguration laden
@@ -70,11 +70,9 @@ def udp_loop(udp):
                 if db_level > config["threshold"]:
                     print(f"Laerm ueber Schwelle bei {device_id}: {db_level} dB")
                     show_alarm(True)
-                    display_status(f"ALARM: {device_id}")
                     set_buzzer(True)
                 else:
                     show_alarm(False)
-                    display_status("OK")
                     set_buzzer(False)
 
             last_update_time = time.ticks_ms()
@@ -89,10 +87,23 @@ def monitor_connection():
         if time.ticks_diff(time.ticks_ms(), last_update_time) > 10000:
             print("Keine Verbindung zu Sensoren")
             set_wifi_icon(False)
-            display_status("Keine Verbindung")
             show_alarm(False)
             set_buzzer(False)
         time.sleep(5)
+		
+def listen_for_button():
+    uart = UART(1, baudrate=9600, tx=17, rx=16)
+    while True:
+        if uart.any():
+            data = uart.read()
+            if data:
+                print("Empfangen:", data)
+
+                # Quittierungs-Button b1 auf page02 (Seite 1, Objekt 1)
+                if b'\x65\x01\x0A\x01\xff\xff\xff' in data:
+                    print("Alarm quittiert")
+                    set_buzzer(False)
+                    show_alarm(False)
 
 # Start
 last_update_time = time.ticks_ms()
@@ -101,5 +112,6 @@ udp = setup_udp()
 
 _thread.start_new_thread(start_webserver, (lambda: latest_data,))
 _thread.start_new_thread(monitor_connection, ())
+_thread.start_new_thread(listen_for_button, ())
 
 udp_loop(udp)

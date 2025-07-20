@@ -16,14 +16,11 @@ def display_value(device_id, db_level):
     val = max(0, min(val, 180))  # Begrenzung auf gueltigen Bereich
 
     if device_id == "node1":
-        send_cmd(f't0.txt="{value_txt}"')
+        send_cmd(f'page02_t0.txt="{value_txt}"')
         send_cmd(f'zHalleA.val={val}')
     elif device_id == "node2":
-        send_cmd(f't1.txt="{value_txt}"')
+        send_cmd(f'page02_t1.txt="{value_txt}"')
         send_cmd(f'zHalleB.val={val}')
-
-def display_status(msg):
-    send_cmd(f'status.txt="{msg}"')
 
 def set_wifi_icon(active):
     if active:
@@ -33,8 +30,8 @@ def set_wifi_icon(active):
 
 def show_alarm(active):
     if active:
-        send_cmd("p0.vis=1")
-        send_cmd("t4.vis=1")
+        send_cmd("page02_p0.vis=1")
+        send_cmd("page02_b1.vis=1")
     else:
-        send_cmd("p0.vis=0")
-        send_cmd("t4.vis=0")
+        send_cmd("page02_p0.vis=0")
+        send_cmd("page02_b1.vis=0")
