@@ -1,7 +1,7 @@
 from machine import UART
 import time
 
-# UART1 für Nextion Display (TX=16, RX=17)
+# UART1 für Nextion Display
 uart = UART(1, baudrate=9600, tx=16, rx=17)
 
 def send_cmd(cmd):
@@ -10,7 +10,7 @@ def send_cmd(cmd):
     uart.write(b'\xff\xff\xff')  # Befehl-Endesequenz
 
 def display_value(device_id, db_level):
-    """Zeigt dB-Wert im jeweiligen Messgerät an (Halle A oder B)"""
+    """Zeigt dB-Wert im jeweiligen Messgeraet an (Halle A oder B)"""
     min_db = 50
     max_db = 120
 
@@ -28,7 +28,7 @@ def display_value(device_id, db_level):
 def set_wifi_icon(active):
     """Aktualisiert WiFi-Symbol (1 = verbunden, 0 = getrennt)"""
     if active:
-        send_cmd("pWiFi.pic=1")  # ID 8 auf beiden Seiten
+        send_cmd("pWiFi.pic=1")
     else:
         send_cmd("pWiFi.pic=0")
 

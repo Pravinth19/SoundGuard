@@ -3,8 +3,8 @@ import socket
 import ujson
 import _thread
 import time
-from machine import Pin, PWM, UART
-from nextion import display_value, set_wifi_icon, show_alarm, send_cmd
+from machine import Pin, PWM
+from nextion import display_value, set_wifi_icon, show_alarm, send_cmd, uart
 from web_config import start_webserver, load_config, save_config
 
 # Konfiguration laden
@@ -19,6 +19,9 @@ latest_data = {
 
 # Buzzer Setup
 buzzer = PWM(Pin(25), freq=3000, duty=0)
+
+# Globaler Alarm-Zustand
+alarm_active = False
 
 def set_buzzer(active):
     if active:
@@ -55,7 +58,7 @@ def save_log_entry(device_id, db_level):
         print("Fehler beim Log-Speichern:", e)
 
 def udp_loop(udp):
-    global last_update_time, threshold
+    global last_update_time, threshold, alarm_active
     while True:
         try:
             data, _ = udp.recvfrom(1024)
@@ -72,9 +75,11 @@ def udp_loop(udp):
                     print(f"Laerm ueber Schwelle bei {device_id}: {db_level} dB")
                     show_alarm(True)
                     set_buzzer(True)
+                    alarm_active = True
                 else:
                     show_alarm(False)
                     set_buzzer(False)
+                    alarm_active = False
 
             last_update_time = time.ticks_ms()
             set_wifi_icon(True)
@@ -93,43 +98,60 @@ def monitor_connection():
         time.sleep(5)
 
 def listen_for_button():
-    global threshold
-    uart = UART(1, baudrate=9600, tx=16, rx=17)
-
-    # Schwellenwert bei Start anzeigen (page03_t2)
+    global threshold, alarm_active
     send_cmd(f'page03_t2.txt="{threshold} dB"')
+    print("Warte auf Touch Events vom Nextion Display ...")
+
+    buffer = b""
 
     while True:
         if uart.any():
-            data = uart.read()
-            if not data:
-                continue
-            print("Empfangen:", data)
+            buffer += uart.read()
 
-            # Quittieren Alarm (page02_b1, ID 10)
-            if b'\x65\x01\x0A\x01\xff\xff\xff' in data:
-                print("Alarm quittiert")
-                set_buzzer(False)
-                show_alarm(False)
+            while b'\xff\xff\xff' in buffer:
+                idx = buffer.index(b'\xff\xff\xff') + 3
+                packet = buffer[:idx]
+                buffer = buffer[idx:]
 
-            # Seite 3: Minus druecken (page03_b1, ID 5)
-            elif b'\x65\x03\x05\x01\xff\xff\xff' in data:
-                threshold = max(50, threshold - 1)
-                send_cmd(f'page03_t2.txt="{threshold} dB"')
-                print("– gedrueckt:", threshold)
+                print("Touch-Ereignis empfangen:", packet.hex())
 
-            # Seite 3: Plus druecken (page03_b2, ID 6)
-            elif b'\x65\x03\x06\x01\xff\xff\xff' in data:
-                threshold = min(120, threshold + 1)
-                send_cmd(f'page03_t2.txt="{threshold} dB"')
-                print("+ gedrueckt:", threshold)
+                if packet.startswith(b'\x65\x02\x05\x01'):  # Minus
+                    threshold = max(50, threshold - 1)
+                    send_cmd(f'page03_t2.txt="{threshold} dB"')
 
-            # Seite 3: Speichern (page03_b0, ID 3)
-            elif b'\x65\x03\x03\x01\xff\xff\xff' in data:
-                save_config({"threshold": threshold})
-                print("Schwellenwert gespeichert:", threshold)
+                elif packet.startswith(b'\x65\x02\x06\x01'):  # Plus
+                    threshold = min(120, threshold + 1)
+                    send_cmd(f'page03_t2.txt="{threshold} dB"')
 
-# Start
+                elif packet.startswith(b'\x65\x02\x03\x01'):  # Speichern
+                    save_config({"threshold": threshold})
+                    print("Schwellenwert gespeichert:", threshold)
+
+                elif packet.startswith(b'\x65\x01\x0A\x01'):  # Quittieren
+                    print("Alarm quittiert")
+                    set_buzzer(False)
+                    show_alarm(False)
+
+                elif packet.startswith(b'\x65\x00\x05\x01'):  # Zu page03
+                    print("→ Navigation zu page03 erkannt")
+                    time.sleep(0.15)
+                    send_cmd(f'page03_t2.txt="{threshold} dB"')
+
+                elif packet.startswith(b'\x65\x00\x04\x01'):  # Zu page02
+                    print("→ Navigation zu page02 erkannt")
+                    time.sleep(0.15)
+                    dba = latest_data["node1"]["db_level"]
+                    dbb = latest_data["node2"]["db_level"]
+
+                    send_cmd(f'zHalleA.val={int(dba)}')
+                    send_cmd(f'zHalleB.val={int(dbb)}')
+                    send_cmd(f'page02_t0.txt="{dba:.1f} dB"')
+                    send_cmd(f'page02_t1.txt="{dbb:.1f} dB"')
+
+                    # Bestehende Funktion nutzen:
+                    show_alarm(alarm_active)
+
+# Startsystem
 last_update_time = time.ticks_ms()
 ap = start_ap()
 udp = setup_udp()
