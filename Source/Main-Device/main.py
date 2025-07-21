@@ -23,6 +23,9 @@ buzzer = PWM(Pin(25), freq=3000, duty=0)
 # Globaler Alarm-Zustand
 alarm_active = False
 
+# Aktuell angezeigte Seite auf dem Display (1 = Menu, 2 = Live-Daten, 3 = Schwellenwert)
+current_page = 1
+
 def set_buzzer(active):
     if active:
         buzzer.freq(3000)
@@ -44,10 +47,6 @@ def setup_udp(port=4210):
     s.bind(('0.0.0.0', port))
     return s
 
-def update_display():
-    display_value("node1", latest_data["node1"]["db_level"])
-    display_value("node2", latest_data["node2"]["db_level"])
-
 def save_log_entry(device_id, db_level):
     try:
         timestamp = time.localtime()
@@ -58,7 +57,7 @@ def save_log_entry(device_id, db_level):
         print("Fehler beim Log-Speichern:", e)
 
 def udp_loop(udp):
-    global last_update_time, threshold, alarm_active
+    global last_update_time, threshold, alarm_active, current_page
     while True:
         try:
             data, _ = udp.recvfrom(1024)
@@ -67,17 +66,17 @@ def udp_loop(udp):
             db_level = float(json_data.get("db_level", 0))
 
             if device_id in latest_data:
-                # Aktuellen Wert speichern
                 latest_data[device_id]["db_level"] = db_level
-                update_display()
+
+                # Anzeige aktualisieren – unabhaengig von aktueller Seite
+                display_value(device_id, db_level)
+
                 save_log_entry(device_id, db_level)
 
                 print(f"{device_id} meldet: {db_level:.1f} dB (Schwelle: {threshold} dB)")
 
                 last_update_time = time.ticks_ms()
-                set_wifi_icon(True)
 
-                # Gemeinsame Alarmpruefung fuer beide Sensoren
                 node1_db = latest_data["node1"]["db_level"]
                 node2_db = latest_data["node2"]["db_level"]
 
@@ -96,13 +95,11 @@ def udp_loop(udp):
         except Exception as e:
             print("Fehler beim Empfang oder Verarbeiten:", e)
 
-
 def monitor_connection():
     global last_update_time
     while True:
         if time.ticks_diff(time.ticks_ms(), last_update_time) > 10000:
             print("Keine Verbindung zu Sensoren")
-            set_wifi_icon(False)
             show_alarm(False)
             set_buzzer(False)
         time.sleep(5)
@@ -114,10 +111,9 @@ def update_runtime_config(new_cfg):
     send_cmd(f'page03_t2.txt="{threshold} dB"')
 
 def listen_for_button():
-    global threshold, alarm_active
+    global threshold, alarm_active, current_page
     send_cmd(f'page03_t2.txt="{threshold} dB"')
     print("Warte auf Touch Events vom Nextion Display ...")
-
     buffer = b""
 
     while True:
@@ -131,7 +127,11 @@ def listen_for_button():
 
                 print("Touch-Ereignis empfangen:", packet.hex())
 
-                if packet.startswith(b'\x65\x02\x05\x01'):  # Minus
+                if packet.startswith(b'\x66') and len(packet) >= 4:
+                    current_page = packet[1]
+                    print("→ Aktive Seite:", current_page)
+
+                elif packet.startswith(b'\x65\x02\x05\x01'):  # Minus
                     threshold = max(50, threshold - 1)
                     send_cmd(f'page03_t2.txt="{threshold} dB"')
 
@@ -143,29 +143,24 @@ def listen_for_button():
                     save_config({"threshold": threshold})
                     print("Schwellenwert gespeichert:", threshold)
 
-                elif packet.startswith(b'\x65\x01\x0A\x01'):  # Quittieren
+                elif packet.startswith(b'\x65\x01\x05\x01'):  # Quittieren
                     print("Alarm quittiert")
                     set_buzzer(False)
                     show_alarm(False)
 
-                elif packet.startswith(b'\x65\x00\x05\x01'):  # Zu page03
-                    print("→ Navigation zu page03 erkannt")
-                    time.sleep(0.15)
-                    send_cmd(f'page03_t2.txt="{threshold} dB"')
-
-                elif packet.startswith(b'\x65\x00\x04\x01'):  # Zu page02
+                elif packet.startswith(b'\x65\x00\x04\x01'):  # zu page02 (Live-Daten)
                     print("→ Navigation zu page02 erkannt")
                     time.sleep(0.15)
                     dba = latest_data["node1"]["db_level"]
                     dbb = latest_data["node2"]["db_level"]
-
-                    send_cmd(f'zHalleA.val={int(dba)}')
-                    send_cmd(f'zHalleB.val={int(dbb)}')
-                    send_cmd(f'page02_t0.txt="{dba:.1f} dB"')
-                    send_cmd(f'page02_t1.txt="{dbb:.1f} dB"')
-
-												 
+                    display_value("node1", dba)
+                    display_value("node2", dbb)
                     show_alarm(alarm_active)
+
+                elif packet.startswith(b'\x65\x00\x05\x01'):  # zu page03 (Einstellungen)
+                    print("→ Navigation zu page03 erkannt")
+                    time.sleep(0.15)
+                    send_cmd(f'page03_t2.txt="{threshold} dB"')
 
 # Startsystem
 last_update_time = time.ticks_ms()

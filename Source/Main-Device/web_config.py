@@ -1,6 +1,7 @@
 import socket
 import ujson
 import time
+from nextion import set_wifi_icon  
 
 CONFIG_FILE = "config.json"
 
@@ -31,9 +32,11 @@ def start_webserver(get_live_data, on_config_change=None):
         s.bind(addr)
     except OSError as e:
         print("Fehler: Port 80 ist bereits belegt – vermutlich laeuft der Webserver noch.")
+        set_wifi_icon(False)  # Symbol aus, wenn Port 80 blockiert
         return
     s.listen(1)
     print("Webserver laeuft auf http://192.168.4.1")
+    set_wifi_icon(True)  # Symbol aktiv, wenn Webserver erfolgreich gestartet
 
     while True:
         cl, _ = s.accept()
