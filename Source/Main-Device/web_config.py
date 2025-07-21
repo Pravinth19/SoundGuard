@@ -24,10 +24,14 @@ def save_config(new_cfg):
     time.sleep(0.1)
 
 # Webserver starten
-def start_webserver(get_live_data):
+def start_webserver(get_live_data, on_config_change=None):
     addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
     s = socket.socket()
-    s.bind(addr)
+    try:
+        s.bind(addr)
+    except OSError as e:
+        print("Fehler: Port 80 ist bereits belegt – vermutlich laeuft der Webserver noch.")
+        return
     s.listen(1)
     print("Webserver laeuft auf http://192.168.4.1")
 
@@ -39,26 +43,28 @@ def start_webserver(get_live_data):
                 continue
             req = raw.decode()
 
-            # Live-Daten abrufen
+		
             if "GET /data" in req:
                 data = get_live_data()
                 cl.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n" + ujson.dumps(data))
-									  
+	 
 
-            # Konfiguration speichern
+		  
             elif "POST /config" in req:
                 try:
                     body = req.split("\r\n\r\n", 1)[1]
-				
+ 
                     value_str = body.split("=", 1)[1]
                     cfg = {"threshold": int(value_str)}
                     save_config(cfg)
+                    if on_config_change:
+                        on_config_change(cfg)
                     cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nKonfiguration gespeichert.")
                 except Exception as e:
                     print("-> Fehler beim Parsen:", e)
                     cl.send("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nFehlerhafte Eingabe.")
 
-            # index.html abrufen
+		
             elif "GET /index.html" in req or "GET / " in req:
                 try:
                     with open("index.html", "r") as f:
@@ -67,7 +73,7 @@ def start_webserver(get_live_data):
                 except:
                     cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nindex.html nicht gefunden.")
 
-            # logs.html abrufen
+		  
             elif "GET /logs.html" in req:
                 try:
                     with open("logs.html", "r") as f:
@@ -76,7 +82,7 @@ def start_webserver(get_live_data):
                 except:
                     cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nlogs.html fehlt.")
 
-            # SoundGuard Logo abrufen
+		  
             elif "GET /soundguard_logo.webp" in req:
                 try:
                     with open("soundguard_logo.webp", "rb") as f:
@@ -85,7 +91,7 @@ def start_webserver(get_live_data):
                 except:
                     cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nLogo fehlt.")
 
-            # Logs loeschen
+		 
             elif "GET /log/delete" in req:
                 try:
                     with open("log.txt", "w") as f:
@@ -94,28 +100,28 @@ def start_webserver(get_live_data):
                 except:
                     cl.send("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nFehler beim Loeschen.")
 
-            # Logs anzeigen
+		 
             elif "GET /log" in req:
                 try:
                     with open("log.txt", "r") as f:
                         log_content = f.read()
                     cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n" + log_content)
-									
+   
                 except:
                     cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
 
-            # Log als CSV herunterladen
+			
             elif "GET /log.csv" in req:
                 try:
                     with open("log.txt", "r") as f:
                         content = f.read()
                     csv = "Zeit;Sensor;dB\n" + content.replace(" dB", "").replace(",", ";")
                     cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/csv\r\nContent-Disposition: attachment; filename=log.csv\r\n\r\n" + csv)
-							
+	
                 except:
                     cl.send("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nKeine Logs vorhanden.")
 
-            # Fallback-Seite
+	   
             else:
                 html = """<html><body><h3>SoundGuard Webserver</h3>
                           <p>Verfuegbare Endpunkte:</p>
@@ -127,11 +133,11 @@ def start_webserver(get_live_data):
                             <li><a href="/log.csv">Log als CSV</a></li>
                           </ul></body></html>"""
                 cl.send("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + html)
-						 
+	
 
         except Exception as e:
             print("Webserver-Fehler:", e)
 
         finally:
             cl.close()
-            time.sleep(0.01)  # Ressourcen schonen
+            time.sleep(0.01)

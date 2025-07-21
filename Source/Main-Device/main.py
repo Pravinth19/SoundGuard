@@ -67,25 +67,35 @@ def udp_loop(udp):
             db_level = float(json_data.get("db_level", 0))
 
             if device_id in latest_data:
+                # Aktuellen Wert speichern
                 latest_data[device_id]["db_level"] = db_level
                 update_display()
                 save_log_entry(device_id, db_level)
 
-                if db_level > threshold:
-                    print(f"Laerm ueber Schwelle bei {device_id}: {db_level} dB")
+                print(f"{device_id} meldet: {db_level:.1f} dB (Schwelle: {threshold} dB)")
+
+                last_update_time = time.ticks_ms()
+                set_wifi_icon(True)
+
+                # Gemeinsame Alarmpruefung fuer beide Sensoren
+                node1_db = latest_data["node1"]["db_level"]
+                node2_db = latest_data["node2"]["db_level"]
+
+                if node1_db > threshold or node2_db > threshold:
+                    print("Alarm: Schwellenwert ueberschritten!")
                     show_alarm(True)
                     set_buzzer(True)
                     alarm_active = True
                 else:
+                    if alarm_active:
+                        print("Alarm beendet – Werte wieder unter der Schwelle.")
                     show_alarm(False)
                     set_buzzer(False)
                     alarm_active = False
 
-            last_update_time = time.ticks_ms()
-            set_wifi_icon(True)
-
         except Exception as e:
-            print("Fehler beim Empfang:", e)
+            print("Fehler beim Empfang oder Verarbeiten:", e)
+
 
 def monitor_connection():
     global last_update_time
@@ -96,6 +106,12 @@ def monitor_connection():
             show_alarm(False)
             set_buzzer(False)
         time.sleep(5)
+
+def update_runtime_config(new_cfg):
+    global threshold
+    threshold = new_cfg.get("threshold", threshold)
+    print("→ Laufzeitkonfiguration aktualisiert:", threshold)
+    send_cmd(f'page03_t2.txt="{threshold} dB"')
 
 def listen_for_button():
     global threshold, alarm_active
@@ -148,7 +164,7 @@ def listen_for_button():
                     send_cmd(f'page02_t0.txt="{dba:.1f} dB"')
                     send_cmd(f'page02_t1.txt="{dbb:.1f} dB"')
 
-                    # Bestehende Funktion nutzen:
+												 
                     show_alarm(alarm_active)
 
 # Startsystem
@@ -156,7 +172,8 @@ last_update_time = time.ticks_ms()
 ap = start_ap()
 udp = setup_udp()
 
-_thread.start_new_thread(start_webserver, (lambda: latest_data,))
+# Threads starten
+_thread.start_new_thread(start_webserver, (lambda: latest_data, update_runtime_config))
 _thread.start_new_thread(monitor_connection, ())
 _thread.start_new_thread(listen_for_button, ())
 

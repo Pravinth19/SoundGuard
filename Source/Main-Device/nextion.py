@@ -1,7 +1,7 @@
 from machine import UART
 import time
 
-# UART1 für Nextion Display
+# UART1 fuer Nextion Display
 uart = UART(1, baudrate=9600, tx=16, rx=17)
 
 def send_cmd(cmd):
@@ -35,8 +35,8 @@ def set_wifi_icon(active):
 def show_alarm(active):
     """Zeigt/Versteckt Alarmanzeige"""
     if active:
-        send_cmd("page02_p0.vis=1")  # Warnsymbol (Dreieck)
-        send_cmd("page02_b1.vis=1")  # Button "Bitte quittieren"
+        send_cmd("vis page02_p0,1")
+        send_cmd("vis page02_b1,1")
     else:
-        send_cmd("page02_p0.vis=0")
-        send_cmd("page02_b1.vis=0")
+        send_cmd("vis page02_p0,0")
+        send_cmd("vis page02_b1,0")
