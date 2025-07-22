@@ -16,7 +16,18 @@ def send_cmd(cmd):
 
 def display_value(device_id, db_level):
     """Zeigt dB-Wert im jeweiligen Messgeraet an (Halle A oder B)"""
-    min_db = 50
+    if db_level is None:
+        if device_id == "node1":
+            send_cmd('page02_t0.txt="Kein Messwert!"')
+            send_cmd('zHalleA.val=0')
+            send_cmd('ref zHalleA')
+        elif device_id == "node2":
+            send_cmd('page02_t1.txt="Kein Messwert!"')
+            send_cmd('zHalleB.val=0')
+            send_cmd('ref zHalleB')
+        return
+
+    min_db = 0
     max_db = 120
 
     # Begrenzen auf gueltigen Wertebereich

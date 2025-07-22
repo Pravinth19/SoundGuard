@@ -13,8 +13,8 @@ threshold = config.get("threshold", 85)
 
 # Aktuelle Messdaten
 latest_data = {
-    "node1": {"device_id": "node1", "db_level": 0.0},
-    "node2": {"device_id": "node2", "db_level": 0.0}
+    "node1": {"device_id": "node1", "db_level": None},
+    "node2": {"device_id": "node2", "db_level": None}
 }
 
 # Buzzer Setup
@@ -42,7 +42,7 @@ def start_ap():
     print("Access Point aktiv:", ap.ifconfig())
     return ap
 
-def setup_udp(port=4210):
+def setup_udp(port=4210): 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(('0.0.0.0', port))
     return s
