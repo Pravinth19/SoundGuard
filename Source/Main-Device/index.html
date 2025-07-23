@@ -5,6 +5,7 @@
   <title>SoundGuard Webinterface</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* Grundlayout */
     html, body {
       margin: 0;
       height: 100%;
@@ -19,6 +20,7 @@
       align-items: center;
     }
 
+    /* Design der Karte (UI-Container) */
     .card {
       background: #e4e1de;
       border-radius: 12px;
@@ -58,6 +60,7 @@
       box-sizing: border-box;
     }
 
+    /* Speichern-Button */
     input[type="submit"] {
       background-color: #ec922b;
       color: #000000;
@@ -71,6 +74,7 @@
       background-color: #d47e1f;
     }
 
+    /* Log-Anzeige-Button */
     input[type="button"] {
       background-color: #4caf50;
       color: #000000;
@@ -84,6 +88,7 @@
       background-color: #3e8e41;
     }
 
+    /* Popup fuer Bestaetigung */
     #popup {
       display: none;
       background-color: #4caf50;
@@ -100,6 +105,7 @@
       box-sizing: border-box;
     }
 
+    /* Live-Datenanzeige */
     #liveData {
       font-weight: bold;
       font-size: 16px;
@@ -107,6 +113,7 @@
       color: #000;
     }
 
+    /* Animation fuer Popup */
     @keyframes fadein {
       from { opacity: 0; transform: translateY(-10px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -118,17 +125,22 @@
     <h1>SoundGuard</h1>
     <img src="soundguard_logo.webp" alt="SoundGuard Logo">
 
+    <!-- Formular zur Einstellung des Schwellenwertes -->
     <form id="configForm">
       <label for="threshold">Alarm-Schwellenwert (dB):</label>
       <input id="threshold" name="threshold" type="number" min="50" max="120" required>
       <input type="submit" value="Speichern">
     </form>
 
+    <!-- Button zum Anzeigen der Logdateien -->
     <form id="logForm">
       <input type="button" value="Logs anzeigen" onclick="viewLogs()">
     </form>
 
+    <!-- Erfolgs-Popup -->
     <div id="popup">Konfiguration gespeichert.</div>
+
+    <!-- Live-Datenanzeige -->
     <div id="liveData">Live-Daten laden...</div>
   </div>
 
@@ -136,6 +148,7 @@
     const form = document.getElementById("configForm");
     const popup = document.getElementById("popup");
 
+    // Beim Absenden des Formulars Konfiguration an Server senden
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const value = document.getElementById("threshold").value;
@@ -148,6 +161,7 @@
           body
         });
 
+        // Erfolgsmeldung anzeigen
         if (res.ok) {
           popup.style.display = "block";
           setTimeout(() => popup.style.display = "none", 7000);
@@ -159,6 +173,7 @@
       }
     });
 
+    // Live-Daten regelmaessig vom Server abrufen
     async function updateLiveData() {
       try {
         const res = await fetch("/data");
@@ -171,12 +186,14 @@
       }
     }
 
+    // Oeffnet die Logs in neuem Fenster
     function viewLogs() {
       window.open("/logs.html", "_blank");
     }
 
+    // Alle 2 Sekunden Live-Daten aktualisieren
     setInterval(updateLiveData, 2000);
-    updateLiveData();
+    updateLiveData(); // Erste Initialisierung
   </script>
 </body>
 </html>

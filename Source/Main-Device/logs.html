@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <title>SoundGuard Logs</title>
   <style>
+    /* Grundlayout und Schriftart */
     body {
       font-family: monospace;
       padding: 20px;
       background-color: #f5f5f5;
     }
 
+    /* Tabellenlayout */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -27,10 +29,12 @@
       color: white;
     }
 
+    /* Zebramuster fuer Tabellenzeilen */
     tr:nth-child(even) {
       background-color: #f9f9f9;
     }
 
+    /* Buttons Styling */
     button {
       margin: 10px 10px 20px 0;
       padding: 8px 12px;
@@ -49,9 +53,14 @@
 </head>
 <body>
   <h2>SoundGuard Logs</h2>
+
+  <!-- Button zum Herunterladen der Logs als CSV -->
   <button onclick="downloadCSV()">Als CSV herunterladen</button>
+
+  <!-- Button zum Loeschen der Logs -->
   <button onclick="deleteLogs()">Logs loeschen</button>
 
+  <!-- Tabelle zur Anzeige der geloggten Daten -->
   <table>
     <thead>
       <tr>
@@ -61,10 +70,13 @@
       </tr>
     </thead>
     <tbody id="logTable">
+      <!-- Platzhalter bis Logs geladen sind -->
       <tr><td colspan="3">Lade Logs...</td></tr>
     </tbody>
   </table>
+
   <script>
+    // Holt Logdaten vom Server und befuellt die Tabelle
     async function loadLogs() {
       try {
         const res = await fetch("/log");
@@ -82,34 +94,39 @@
           }
         }
 
+        // Wenn keine Daten vorhanden sind
         if (tbody.innerHTML.trim() === "") {
           tbody.innerHTML = "<tr><td colspan='3'>(Keine Logs gefunden)</td></tr>";
         }
 
       } catch (err) {
+        // Fehleranzeige bei Verbindungsproblemen
         document.getElementById("logTable").innerHTML = "<tr><td colspan='3'>Fehler beim Laden der Logs.</td></tr>";
       }
     }
 
+    // Sendet Loeschanfrage an den Server und laedt danach die aktualisierte Liste
     function deleteLogs() {
       fetch("/log/delete").then(res => {
         if (res.ok) {
-          loadLogs();
+          loadLogs(); // Neu laden nach Loeschen
         } else {
           alert("Fehler beim Loeschen.");
         }
       });
     }
 
+    // Startet Download der CSV-Datei im Browser
     function downloadCSV() {
-    const link = document.createElement("a");
-    link.href = "/log.csv";
-    link.download = "log.csv"; // Name der heruntergeladenen Datei
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const link = document.createElement("a");
+      link.href = "/log.csv";
+      link.download = "log.csv"; // Name der heruntergeladenen Datei
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
+    // Automatischer Start beim Laden der Seite
     loadLogs();
   </script>
 </body>

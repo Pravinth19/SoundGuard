@@ -11,28 +11,27 @@ from web_config import start_webserver, load_config, save_config
 config = load_config()
 threshold = config.get("threshold", 85)
 
-# Aktuelle Messdaten
+# Messwerte der beiden Sensoren
 latest_data = {
     "node1": {"device_id": "node1", "db_level": None},
     "node2": {"device_id": "node2", "db_level": None}
 }
 
-# Zeitstempel pro Node
+# Letzter Update-Zeitstempel fuer jeden Sensor
 last_update_times = {
     "node1": time.ticks_ms(),
     "node2": time.ticks_ms()
 }
 
-# Buzzer Setup
+# Buzzer-Initialisierung
 buzzer = PWM(Pin(25), freq=2500, duty=0)
 
-# Globaler Alarm-Zustand
+# Statusvariablen
 alarm_active = False
-quittiert_bis = 0  # Zeitstempel bis wann der Buzzer aus ist
+quittiert_bis = 0  # Zeitstempel bis wann der Alarm deaktiviert bleibt
+current_page = 1   # 1 = Hauptmenue, 2 = Live-Daten, 3 = Einstellungen
 
-# Aktuell angezeigte Seite auf dem Display (1 = Menu, 2 = Live-Daten, 3 = Schwellenwert)
-current_page = 1
-
+# Buzzer aktivieren oder deaktivieren
 def set_buzzer(active):
     global quittiert_bis
     if time.ticks_ms() < quittiert_bis:
@@ -42,11 +41,11 @@ def set_buzzer(active):
         buzzer.freq(2500)
         buzzer.duty(512)
         time.sleep(0.5)
-        buzzer.deint()
-					   
+        buzzer.deinit()
     else:
         buzzer.duty(0)
 
+# Access Point starten
 def start_ap():
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
@@ -56,11 +55,13 @@ def start_ap():
     print("Access Point aktiv:", ap.ifconfig())
     return ap
 
+# UDP-Socket einrichten
 def setup_udp(port=4210):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(('0.0.0.0', port))
     return s
 
+# Eintrag ins Logfile schreiben
 def save_log_entry(device_id, db_level):
     try:
         timestamp = time.localtime()
@@ -71,8 +72,10 @@ def save_log_entry(device_id, db_level):
     except Exception as e:
         print("Fehler beim Log-Speichern:", e)
 
+# Maximale Anzahl Eintraege im Log
 MAX_LOG_ENTRIES = 50
 
+# Log automatisch leeren, wenn Grenze ueberschritten wird
 def check_and_clear_logs():
     try:
         with open("log.txt", "r") as f:
@@ -80,10 +83,11 @@ def check_and_clear_logs():
         if len(lines) >= MAX_LOG_ENTRIES:
             print("→ Loggrenze erreicht. Logdateien werden geloescht.")
             with open("log.txt", "w") as f:
-                f.write("") 	# leeren
+                f.write("")		
     except Exception as e:
         print("Fehler beim Ueberpruefen/Loeschen der Logs:", e)
 
+# Empfangsschleife fuer UDP-Pakete der Sensoren
 def udp_loop(udp):
     global threshold, alarm_active, current_page
     while True:
@@ -102,6 +106,7 @@ def udp_loop(udp):
 
                 print(f"{device_id} meldet: {db_level:.1f} dB (Schwelle: {threshold} dB)")
 
+                # Alarmzustand pruefen und verarbeiten
                 node1_db = latest_data["node1"]["db_level"]
                 node2_db = latest_data["node2"]["db_level"]
 
@@ -120,6 +125,7 @@ def udp_loop(udp):
         except Exception as e:
             print("Fehler beim Empfang oder Verarbeiten:", e)
 
+# Verbindung der Sensoren ueberwachen
 def monitor_connection():
     while True:
         now = time.ticks_ms()
@@ -129,39 +135,37 @@ def monitor_connection():
                 display_value(node, None)	# Zeigt "Kein Messwert!" im Display an
         time.sleep(5)
 
+# Konfiguration zur Laufzeit aktualisieren
 def update_runtime_config(new_cfg):
     global threshold
     threshold = new_cfg.get("threshold", threshold)
     print("→ Laufzeitkonfiguration aktualisiert:", threshold)
     send_cmd(f'page03_t2.txt="{threshold} dB"')
-
-									
     send_threshold_to_nodes(threshold)
 
+# Schwellenwert an Sensor-Nodes senden
 def send_threshold_to_nodes(value):
     msg = ujson.dumps({"threshold": value})
     node_addresses = [
         ("192.168.4.101", 4211),	# SensorNode 1
         ("192.168.4.102", 4212)		# SensorNode 2 (optional)
     ]
- 
     try:
         udp_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_send.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
- 
         for ip, port in node_addresses:
             udp_send.sendto(msg.encode(), (ip, port))
             print(f"Schwellenwert an {ip}:{port} gesendet.")
- 
         udp_send.close()
     except Exception as e:
         print("Fehler beim Senden:", e)
 
+# Alarmquittierung an Sensor-Nodes senden
 def send_quittierung_to_nodes():
     msg = ujson.dumps({"quittiert": True})
     node_addresses = [
-        ("192.168.4.101", 4211),
-        ("192.168.4.102", 4212)
+        ("192.168.4.101", 4211),	# SensorNode 1
+        ("192.168.4.102", 4212)		# SensorNode 2 (optional)
     ]
     try:
         udp_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -173,6 +177,7 @@ def send_quittierung_to_nodes():
     except Exception as e:
         print("Fehler beim Senden der Quittierung:", e)
 
+# Display-Bedienung per UART auswerten
 def listen_for_button():
     global threshold, alarm_active, current_page, quittiert_bis
     send_cmd(f'page03_t2.txt="{threshold} dB"')
@@ -190,19 +195,20 @@ def listen_for_button():
 
                 print("Touch-Ereignis empfangen:", packet.hex())
 
+                # Navigation
                 if packet.startswith(b'\x66') and len(packet) >= 4:
                     current_page = packet[1]
                     print("→ Aktive Seite:", current_page)
 
-                elif packet.startswith(b'\x65\x02\x05\x01'):  # Minus
+                elif packet.startswith(b'\x65\x02\x05\x01'):  # Minus-Button
                     threshold = max(50, threshold - 1)
                     send_cmd(f'page03_t2.txt="{threshold} dB"')
 
-                elif packet.startswith(b'\x65\x02\x06\x01'):  # Plus
+                elif packet.startswith(b'\x65\x02\x06\x01'):  # Plus-Button
                     threshold = min(120, threshold + 1)
                     send_cmd(f'page03_t2.txt="{threshold} dB"')
 
-                elif packet.startswith(b'\x65\x02\x03\x01'):  # Speichern
+                elif packet.startswith(b'\x65\x02\x03\x01'):  # Speichern-Button
                     cfg = {"threshold": threshold}
                     save_config(cfg)
                     update_runtime_config(cfg)
@@ -215,25 +221,26 @@ def listen_for_button():
                     show_alarm(False)
                     send_quittierung_to_nodes()
 
-                elif packet.startswith(b'\x65\x00\x04\x01'):  # zu page02 (Live-Daten)
+                elif packet.startswith(b'\x65\x00\x04\x01'):  # Navigation zu Live-Daten
                     print("→ Navigation zu page02 erkannt")
                     time.sleep(0.15)
                     display_value("node1", latest_data["node1"]["db_level"])
                     display_value("node2", latest_data["node2"]["db_level"])
                     show_alarm(alarm_active)
 
-                elif packet.startswith(b'\x65\x00\x05\x01'):  # zu page03 (Einstellungen)
+                elif packet.startswith(b'\x65\x00\x05\x01'):  # Navigation zu Einstellungen
                     print("→ Navigation zu page03 erkannt")
                     time.sleep(0.15)
                     send_cmd(f'page03_t2.txt="{threshold} dB"')
 
-# Startsystem
+# Hauptstart
 ap = start_ap()
 udp = setup_udp()
 
-# Threads starten
+# Nebenlaeufige Threads starten
 _thread.start_new_thread(start_webserver, (lambda: latest_data, update_runtime_config))
 _thread.start_new_thread(monitor_connection, ())
 _thread.start_new_thread(listen_for_button, ())
 
+# Haupt-Loop
 udp_loop(udp)
